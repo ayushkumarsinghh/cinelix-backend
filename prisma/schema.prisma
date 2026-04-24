@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  bookings  Booking[]
+}
+
+model Movie {
+  id          String   @id @default(uuid())
+  title       String
+  duration    Int
+  createdAt   DateTime @default(now())
+
+  shows       Show[]
+}
+
+model Theatre {
+  id        String   @id @default(uuid())
+  name      String
+  location  String
+
+  shows     Show[]
+  seats     Seat[]
+}
+
+model Show {
+  id         String   @id @default(uuid())
+  movieId    String
+  theatreId  String
+  startTime  DateTime
+
+  movie      Movie   @relation(fields: [movieId], references: [id])
+  theatre    Theatre @relation(fields: [theatreId], references: [id])
+
+  bookings   Booking[]
+}
+
+model Seat {
+  id         String   @id @default(uuid())
+  theatreId  String
+  seatNumber String   // e.g. A1, B2
+
+  theatre    Theatre @relation(fields: [theatreId], references: [id])
+  bookings   Booking[]
+}
+
+model Booking {
+  id        String   @id @default(uuid())
+  userId    String
+  showId    String
+  seatId    String
+  status    BookingStatus @default(PENDING)
+  createdAt DateTime @default(now())
+
+  user      User @relation(fields: [userId], references: [id])
+  show      Show @relation(fields: [showId], references: [id])
+  seat      Seat @relation(fields: [seatId], references: [id])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
