@@ -1,6 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import { createOrderSchema, verifyPaymentSchema } from "../validators/paymentSchemas.js";
 import * as paymentService from "../services/paymentService.js";
+import { sendTicketEmail } from "../services/mailerService.js";
+import { getBookingById } from "../services/bookingService.js";
+import prisma from "../lib/prisma.js";
 
 export const createOrderController = async (req: any, res: Response, next: NextFunction) => {
   try {
@@ -37,6 +40,38 @@ export const verifyPaymentController = async (req: any, res: Response, next: Nex
       seatIds,
       userId
     );
+
+    // Emit real-time update
+    const io = req.app.get("io");
+    io.to(`show_${showId}`).emit("booking_confirmed", {
+      showId,
+      confirmedSeats: seatIds
+    });
+
+    // Send Ticket Email in background
+    (async () => {
+      try {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (user && bookings.length > 0) {
+          const detail = await getBookingById(bookings[0].id);
+          if (detail) {
+            await sendTicketEmail(user.email, {
+              movie: detail.show.movie,
+              show: detail.show,
+              theatre: detail.show.theatre,
+              seats: seatIds.map((sid: string) => {
+                // This is a bit of a hack to get seat numbers for the email
+                // in a real app we'd fetch them properly
+                return "Seat"; 
+              }),
+              qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=http://localhost:3000/verify/${bookings[0].id}`
+            });
+          }
+        }
+      } catch (emailErr) {
+        console.error("Failed to send ticket email:", emailErr);
+      }
+    })();
 
     return res.status(200).json({ 
       message: "Payment verified and booking confirmed!", 

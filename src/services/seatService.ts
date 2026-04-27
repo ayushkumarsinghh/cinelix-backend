@@ -16,17 +16,19 @@ export const getSeatStatus = async (showId: string) => {
 
   const bookings = await prisma.booking.findMany({
     where: { showId, status: "CONFIRMED" },
-    select: { seatId: true }
+    select: { id: true, seatId: true }
   });
 
-  const bookedSeatIds = new Set(bookings.map(b => b.seatId));
+  const bookingMap = new Map(bookings.map(b => [b.seatId, b.id]));
 
   const seatStatuses = await Promise.all(
     allSeats.map(async (seat: any) => {
       let status = "AVAILABLE";
+      let bookingId = null;
 
-      if (bookedSeatIds.has(seat.id)) {
+      if (bookingMap.has(seat.id)) {
         status = "BOOKED";
+        bookingId = bookingMap.get(seat.id);
       } else {
         const lockKey = `seat_lock:${showId}:${seat.id}`;
         const isLocked = await redis.get(lockKey);
@@ -41,9 +43,12 @@ export const getSeatStatus = async (showId: string) => {
 
       return {
         id: seat.id,
+        seatNumber: seat.seatNumber,
         row,
         number,
-        status
+        status,
+        isBooked: status === "BOOKED" || status === "LOCKED",
+        bookingId
       };
     })
   );

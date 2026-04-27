@@ -28,6 +28,7 @@ model Movie {
   description String?
   genre       String?
   imageUrl    String?
+  trailerUrl  String?
   duration    Int
   createdAt   DateTime @default(now())
 
@@ -71,6 +72,7 @@ model Booking {
   showId    String
   seatId    String
   status    BookingStatus @default(PENDING)
+  isUsed    Boolean @default(false)
   createdAt DateTime @default(now())
 
   user      User @relation(fields: [userId], references: [id])

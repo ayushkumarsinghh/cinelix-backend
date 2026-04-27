@@ -11,6 +11,14 @@ export const lockSeatController = async (req: AuthRequest, res: Response, next: 
 
     await lockSeats({ userId, ...validatedData });
 
+    // Emit real-time update
+    const io = req.app.get("io");
+    io.to(`show_${validatedData.showId}`).emit("seat_update", {
+      showId: validatedData.showId,
+      lockedSeats: validatedData.seatIds,
+      lockedBy: userId
+    });
+
     return res.status(200).json({ 
       message: "Seats locked successfully", 
       expiresAt: Date.now() + 300000 

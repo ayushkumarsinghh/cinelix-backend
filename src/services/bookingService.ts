@@ -105,10 +105,12 @@ export async function getUserBookings(userId: string) {
         totalAmount: 0, // Will calculate
         show: {
           startTime: b.show.startTime,
-          theater: b.show.theatre.name,
+          theatre: {
+            name: b.show.theatre.name
+          },
           movie: {
             title: b.show.movie.title,
-            imageUrl: (b.show.movie as any).imageUrl
+            imageUrl: b.show.movie.imageUrl
           }
         },
         seats: []
@@ -139,4 +141,70 @@ export async function getUserBookings(userId: string) {
   });
 
   return finalBookings;
+}
+
+export async function deleteBooking(id: string) {
+  return await prisma.booking.delete({
+    where: { id }
+  });
+}
+
+export async function getBookingById(id: string) {
+  const b = await prisma.booking.findUnique({
+    where: { id },
+    include: {
+      show: {
+        include: {
+          movie: true,
+          theatre: true
+        }
+      },
+      seat: true,
+      user: {
+        select: {
+          email: true
+        }
+      }
+    }
+  });
+
+  if (!b) return null;
+
+  const rowMatch = b.seat.seatNumber.match(/^([A-Z]+)(\d+)$/);
+  const row = rowMatch ? rowMatch[1] : 'A';
+  const number = rowMatch ? parseInt(rowMatch[2], 10) : 1;
+
+  return {
+    id: b.id,
+    status: b.status,
+    isUsed: b.isUsed,
+    createdAt: b.createdAt,
+    userEmail: b.user.email,
+    show: {
+      startTime: b.show.startTime,
+      theatre: {
+        name: b.show.theatre.name,
+        location: b.show.theatre.location
+      },
+      movie: {
+        title: b.show.movie.title,
+        imageUrl: b.show.movie.imageUrl,
+        duration: b.show.movie.duration
+      }
+    },
+    seat: {
+      id: b.seat.id,
+      seatNumber: b.seat.seatNumber,
+      row,
+      number
+    },
+    totalAmount: b.show.price
+  };
+}
+
+export async function redeemBooking(id: string) {
+  return await prisma.booking.update({
+    where: { id },
+    data: { isUsed: true }
+  });
 }

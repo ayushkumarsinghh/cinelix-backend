@@ -1,17 +1,21 @@
+import { createServer } from "http";
+import { Server } from "socket.io";
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import seatRoutes from "./routes/seatRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import movieRoutes from "./routes/movieRoutes.js";
 import showRoutes from "./routes/showRoutes.js";
+import theatreRoutes from "./routes/theatreRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 import prisma from "./lib/prisma.js";
 import redis from "./lib/redis.js";
 import { errorHandler } from "./middleware/errorMiddleware.js";
-
-dotenv.config();
 
 // Environment validation
 const requiredEnv = ["DATABASE_URL", "JWT_SECRET", "REDIS_URL"];
@@ -23,6 +27,23 @@ requiredEnv.forEach((env) => {
 });
 
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+// Store io instance globally
+app.set("io", io);
+
+io.on("connection", (socket) => {
+  socket.on("join_show", (showId) => {
+    socket.join(`show_${showId}`);
+  });
+});
+
 const PORT = process.env.PORT || 5000;
 
 // Middleware
@@ -33,9 +54,11 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/movies", movieRoutes);
 app.use("/api/shows", showRoutes);
+app.use("/api/theatres", theatreRoutes);
 app.use("/api/seats", seatRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/bookings", bookingRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Health Check
 app.get("/health", (req, res) => {
@@ -45,7 +68,7 @@ app.get("/health", (req, res) => {
 // Error Handler (Must be last)
 app.use(errorHandler);
 
-app.listen(PORT, async () => {
+httpServer.listen(PORT, async () => {
   try {
     // Database check
     await prisma.$connect();

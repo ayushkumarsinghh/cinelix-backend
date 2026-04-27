@@ -50,19 +50,20 @@ async function main() {
     data: { name: "IMAX Megaplex", location: "Mumbai, BKC" },
   });
 
-  // 5. Create Seats (A1 to A10)
-  const seats = [];
-  for (let i = 1; i <= 10; i++) {
-    const seat = await prisma.seat.create({
-      data: {
-        theatreId: theatre.id,
-        seatNumber: `A${i}`,
-      },
-    });
-    seats.push(seat);
+  // 5. Create 70 Seats (Rows A-G, 1-10)
+  const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+  for (const row of rows) {
+    for (let i = 1; i <= 10; i++) {
+      await prisma.seat.create({
+        data: {
+          theatreId: theatre.id,
+          seatNumber: `${row}${i}`,
+        },
+      });
+    }
   }
 
-  // 6. Create Shows (Today & Tomorrow)
+  // 6. Create Shows
   const show1 = await prisma.show.create({
     data: {
       movieId: movie1.id,
@@ -80,19 +81,11 @@ async function main() {
   });
 
   console.log("Seeding complete!");
-  console.log({
-    userEmail: user.email,
-    movies: [movie1.title, movie2.title],
-    theatre: theatre.name,
-    seatsCreated: seats.length,
-    showsCreated: 2,
-  });
 }
 
 main()
   .catch((e) => {
     console.error(e);
-    process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();
