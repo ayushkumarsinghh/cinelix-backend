@@ -8,12 +8,13 @@ import authRoutes from "./routes/authRoutes.js";
 import movieRoutes from "./routes/movieRoutes.js";
 import showRoutes from "./routes/showRoutes.js";
 import prisma from "./lib/prisma.js";
+import redis from "./lib/redis.js";
 import { errorHandler } from "./middleware/errorMiddleware.js";
 
 dotenv.config();
 
 // Environment validation
-const requiredEnv = ["DATABASE_URL", "JWT_SECRET"];
+const requiredEnv = ["DATABASE_URL", "JWT_SECRET", "REDIS_URL"];
 requiredEnv.forEach((env) => {
   if (!process.env[env]) {
     console.error(`CRITICAL: Missing environment variable ${env}`);
@@ -46,10 +47,17 @@ app.use(errorHandler);
 
 app.listen(PORT, async () => {
   try {
+    // Database check
     await prisma.$connect();
-    console.log(`Server running on http://localhost:${PORT}`);
     console.log(`Database: Connected to PostgreSQL`);
+
+    // Redis check
+    await redis.ping();
+    console.log(`Redis: Connected and Responsive`);
+
+    console.log(`Server running on http://localhost:${PORT}`);
   } catch (error) {
-    console.error("Database connection error:", error);
+    console.error("Critical connection error during startup:", error);
+    process.exit(1);
   }
 });

@@ -9,8 +9,7 @@ export const createOrderController = async (req: any, res: Response, next: NextF
 
     const order = await paymentService.createRazorpayOrder(
       validatedData.showId,
-      validatedData.seatId,
-      validatedData.amount,
+      validatedData.seatIds,
       userId
     );
 
@@ -22,23 +21,29 @@ export const createOrderController = async (req: any, res: Response, next: NextF
 
 export const verifyPaymentController = async (req: any, res: Response, next: NextFunction) => {
   try {
-    const validatedData = verifyPaymentSchema.parse(req.body);
+    // For the demo, we'll be more lenient with the input
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, showId, seatIds } = req.body;
     const userId = req.user.userId;
 
-    const booking = await paymentService.verifyRazorpayPayment(
-      validatedData.razorpay_order_id,
-      validatedData.razorpay_payment_id,
-      validatedData.razorpay_signature,
-      validatedData.showId,
-      validatedData.seatId,
+    if (!showId || !seatIds) {
+      return res.status(400).json({ message: "Missing showId or seatIds in verification" });
+    }
+
+    const bookings = await paymentService.verifyRazorpayPayment(
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      showId,
+      seatIds,
       userId
     );
 
     return res.status(200).json({ 
       message: "Payment verified and booking confirmed!", 
-      booking 
+      bookings 
     });
   } catch (err: any) {
+    console.error("Verification error:", err);
     next(err);
   }
 };

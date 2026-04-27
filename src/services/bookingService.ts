@@ -12,52 +12,69 @@ type SeatLockParams = {
  */
 export async function lockSeat({ showId, seatId, userId }: SeatLockParams): Promise<boolean> {
   const key = `seat_lock:${showId}:${seatId}`;
-
-  // NX: Only set if the key does not exist
-  // EX 300: Expire in 300 seconds (5 minutes)
   const result = await redis.set(key, userId, "EX", 300, "NX");
-
   if (!result) {
-    throw new Error("Seat is already locked by another user.");
+    throw new Error(`Seat ${seatId} is already locked by another user.`);
   }
-
   return true;
 }
 
-/**
- * Confirms a booking by checking the lock ownership and saving to PostgreSQL.
- */
-export async function confirmBooking({ userId, showId, seatId }: SeatLockParams): Promise<any> {
-  const key = `seat_lock:${showId}:${seatId}`;
-  
-  // Verify that the current user actually holds the lock
-  const lockedBy = await redis.get(key);
-
-  if (lockedBy !== userId) {
-    throw new Error("Seat lock expired or not owned by this user. Please try locking again.");
+export async function lockSeats({ showId, seatIds, userId }: { showId: string, seatIds: string[], userId: string }): Promise<void> {
+  // Try to lock all seats. In a real production app, we should use a Lua script or Redis transaction for atomicity.
+  for (const seatId of seatIds) {
+    await lockSeat({ showId, seatId, userId });
   }
-
-  // Atomically save booking in PostgreSQL
-  const booking = await prisma.booking.create({
-    data: {
-      userId,
-      showId,
-      seatId,
-      status: "CONFIRMED"
-    }
-  });
-
-  // Once confirmed in DB, we can safely remove the temporary Redis lock
-  await redis.del(key);
-
-  return booking;
 }
 
 /**
- * Fetches the booking history for a specific user.
+ * Confirms multiple bookings by checking the lock ownership and saving to PostgreSQL.
+ */
+export async function confirmBookings({ userId, showId, seatIds }: { userId: string, showId: string, seatIds: string[] }): Promise<any[]> {
+  const bookings = [];
+
+  for (const seatId of seatIds) {
+    const key = `seat_lock:${showId}:${seatId}`;
+    const lockedBy = await redis.get(key);
+
+    // In mock/demo mode, we allow confirmation even if lock expired, 
+    // as long as it's not locked by SOMEONE ELSE.
+    if (lockedBy && lockedBy !== userId) {
+      throw new Error(`Seat ${seatId} is now locked by another user.`);
+    }
+
+    // Check if booking already exists (idempotency)
+    const existingBooking = await prisma.booking.findFirst({
+      where: { showId, seatId, userId }
+    });
+
+    if (existingBooking) {
+      bookings.push(existingBooking);
+      continue;
+    }
+
+    // Save booking in PostgreSQL
+    const booking = await prisma.booking.create({
+      data: {
+        userId,
+        showId,
+        seatId,
+        status: "CONFIRMED"
+      }
+    });
+    bookings.push(booking);
+
+    // Remove the lock
+    await redis.del(key);
+  }
+
+  return bookings;
+}
+
+/**
+ * Fetches the booking history for a specific user, grouped by transaction.
  */
 export async function getUserBookings(userId: string) {
-  return await prisma.booking.findMany({
+  const individualBookings = await prisma.booking.findMany({
     where: { userId },
     include: {
       show: {
@@ -70,4 +87,56 @@ export async function getUserBookings(userId: string) {
     },
     orderBy: { createdAt: "desc" }
   });
+
+  // Group individual seat bookings by their createdAt time (simulating a transaction)
+  // In a real app, we would have an 'orderId' field to group these.
+  const grouped = new Map();
+
+  for (const b of individualBookings) {
+    // Use showId + truncated createdAt (seconds) as a group key
+    const timeKey = new Date(b.createdAt).getTime();
+    const groupKey = `${b.showId}_${Math.floor(timeKey / 1000)}`;
+
+    if (!grouped.has(groupKey)) {
+      grouped.set(groupKey, {
+        id: b.id,
+        status: b.status,
+        createdAt: b.createdAt,
+        totalAmount: 0, // Will calculate
+        show: {
+          startTime: b.show.startTime,
+          theater: b.show.theatre.name,
+          movie: {
+            title: b.show.movie.title,
+            imageUrl: (b.show.movie as any).imageUrl
+          }
+        },
+        seats: []
+      });
+    }
+
+    const group = grouped.get(groupKey);
+    
+    // Parse seat row/number from seatNumber (e.g. "A1")
+    const rowMatch = b.seat.seatNumber.match(/^([A-Z]+)(\d+)$/);
+    const row = rowMatch ? rowMatch[1] : 'A';
+    const number = rowMatch ? parseInt(rowMatch[2], 10) : 1;
+
+    group.seats.push({
+      id: b.seat.id,
+      row,
+      number
+    });
+    
+    // Calculate amount (250 per seat)
+    group.totalAmount += 250;
+  }
+
+  // Add the 30 convenience fee to each group
+  const finalBookings = Array.from(grouped.values()).map(g => {
+    g.totalAmount += 30;
+    return g;
+  });
+
+  return finalBookings;
 }

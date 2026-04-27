@@ -35,9 +35,14 @@ export const getSeatStatus = async (showId: string) => {
         }
       }
 
+      const rowMatch = seat.seatNumber.match(/^([A-Z]+)(\d+)$/);
+      const row = rowMatch ? rowMatch[1] : 'A';
+      const number = rowMatch ? parseInt(rowMatch[2], 10) : 1;
+
       return {
         id: seat.id,
-        seatNumber: seat.seatNumber,
+        row,
+        number,
         status
       };
     })

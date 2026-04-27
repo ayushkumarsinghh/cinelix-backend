@@ -18,17 +18,31 @@ async function main() {
   const hashedPassword = await bcrypt.hash("password123", 10);
   const user = await prisma.user.create({
     data: {
+      id: "6ac4f456-0cb1-4f32-aeb2-89a34ec1f4a2", // Fixed ID
       email: "admin@cinelix.com",
       password: hashedPassword,
+      role: "ADMIN",
     },
   });
 
   // 3. Create Movies
   const movie1 = await prisma.movie.create({
-    data: { title: "Dune: Part Two", duration: 166 },
+    data: { 
+      title: "Dune: Part Two", 
+      duration: 166,
+      genre: "Sci-Fi, Adventure",
+      description: "Paul Atreides unites with Chani and the Fremen while on a warpath of revenge against the conspirators who destroyed his family.",
+      imageUrl: "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=2094&auto=format&fit=crop"
+    },
   });
   const movie2 = await prisma.movie.create({
-    data: { title: "Oppenheimer", duration: 180 },
+    data: { 
+      title: "Oppenheimer", 
+      duration: 180,
+      genre: "Biography, Drama, History",
+      description: "The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb.",
+      imageUrl: "https://images.unsplash.com/photo-1440404653325-ab127d49abc1?q=80&w=2070&auto=format&fit=crop"
+    },
   });
 
   // 4. Create a Theatre

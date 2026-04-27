@@ -7,10 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
   password  String
+  role      UserRole @default(USER)
   createdAt DateTime @default(now())
 
   bookings  Booking[]
@@ -19,6 +25,9 @@ model User {
 model Movie {
   id          String   @id @default(uuid())
   title       String
+  description String?
+  genre       String?
+  imageUrl    String?
   duration    Int
   createdAt   DateTime @default(now())
 
@@ -39,6 +48,7 @@ model Show {
   movieId    String
   theatreId  String
   startTime  DateTime
+  price      Float    @default(250.0)
 
   movie      Movie   @relation(fields: [movieId], references: [id])
   theatre    Theatre @relation(fields: [theatreId], references: [id])

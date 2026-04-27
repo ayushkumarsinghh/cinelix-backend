@@ -6,7 +6,7 @@ export const getBookingHistoryController = async (req: any, res: Response, next:
     const userId = req.user.userId;
     const bookings = await bookingService.getUserBookings(userId);
 
-    return res.status(200).json({ bookings });
+    return res.status(200).json(bookings);
   } catch (err: any) {
     next(err);
   }

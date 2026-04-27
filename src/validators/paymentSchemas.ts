@@ -2,8 +2,7 @@ import { z } from "zod";
 
 export const createOrderSchema = z.object({
   showId: z.string().uuid(),
-  seatId: z.string(),
-  amount: z.number().positive(),
+  seatIds: z.array(z.string()),
 });
 
 export const verifyPaymentSchema = z.object({
@@ -11,5 +10,5 @@ export const verifyPaymentSchema = z.object({
   razorpay_payment_id: z.string(),
   razorpay_signature: z.string(),
   showId: z.string().uuid(),
-  seatId: z.string(),
+  seatIds: z.array(z.string()),
 });

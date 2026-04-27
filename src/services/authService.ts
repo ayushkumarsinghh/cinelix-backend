@@ -23,9 +23,9 @@ export const registerUser = async (data: any) => {
     },
   });
 
-  const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "24h" });
+  const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: "24h" });
 
-  return { token, user: { id: user.id, email: user.email } };
+  return { token, user: { id: user.id, email: user.email, role: user.role } };
 };
 
 export const loginUser = async (data: any) => {
@@ -43,15 +43,15 @@ export const loginUser = async (data: any) => {
     throw new ApiError(401, "Invalid credentials");
   }
 
-  const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "24h" });
+  const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: "24h" });
 
-  return { token, user: { id: user.id, email: user.email } };
+  return { token, user: { id: user.id, email: user.email, role: user.role } };
 };
 
 export const getUserProfile = async (userId: string) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, createdAt: true },
+    select: { id: true, email: true, role: true, createdAt: true },
   });
 
   if (!user) {

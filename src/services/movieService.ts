@@ -15,3 +15,9 @@ export const getMovieShows = async (movieId: string) => {
     orderBy: { startTime: "asc" }
   });
 };
+
+export const getMovieById = async (id: string) => {
+  return await prisma.movie.findUnique({
+    where: { id }
+  });
+};

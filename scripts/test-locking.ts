@@ -1,4 +1,4 @@
-import { lockSeat, confirmBooking } from "../src/services/bookingService.js";
+import { lockSeat, confirmBookings } from "../src/services/bookingService.js";
 import redis from "../src/lib/redis.js";
 import prisma from "../src/lib/prisma.js";
 
@@ -45,7 +45,7 @@ async function runTest() {
   // --- TEST 3: Confirmation Ownership Check ---
   console.log("\n3️⃣  Testing: User B tries to confirm User A's lock...");
   try {
-    await confirmBooking({ userId: anotherUserId, showId, seatId });
+    await confirmBookings({ userId: anotherUserId, showId, seatIds: [seatId] });
     console.log("❌ Fail: User B was able to confirm someone else's lock!");
   } catch (err: any) {
     console.log(`✅ Success: User B confirmation rejected. Reason: "${err.message}"`);
@@ -54,8 +54,8 @@ async function runTest() {
   // --- TEST 4: Successful Booking Confirmation ---
   console.log("\n4️⃣  Testing: User A confirms the booking...");
   try {
-    const booking = await confirmBooking({ userId, showId, seatId });
-    console.log(`✅ Success: Booking created in PostgreSQL with status: ${booking.status}`);
+    const bookings = await confirmBookings({ userId, showId, seatIds: [seatId] });
+    console.log(`✅ Success: Booking created in PostgreSQL with status: ${bookings[0].status}`);
   } catch (err: any) {
     console.log(`❌ Fail: User A could not confirm their own lock. Error: "${err.message}"`);
   }

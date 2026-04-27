@@ -19,3 +19,16 @@ export const getMovieShows = async (req: Request, res: Response, next: NextFunct
     next(err);
   }
 };
+
+export const getMovieById = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const movie = await movieService.getMovieById(id as string);
+    if (!movie) {
+      return res.status(404).json({ message: "Movie not found" });
+    }
+    return res.status(200).json(movie);
+  } catch (err: any) {
+    next(err);
+  }
+};
