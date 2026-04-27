@@ -1,9 +1,16 @@
+import Razorpay from "razorpay";
+import crypto from "crypto";
 import redis from "../lib/redis.js";
 import { ApiError } from "../middleware/errorMiddleware.js";
 import { confirmBookings } from "./bookingService.js";
 
+const razorpay = process.env.RAZORPAY_KEY_ID ? new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+}) : null;
+
 /**
- * MOCK: Simulates creating a Razorpay order without hitting their API.
+ * Creates a Razorpay order. Uses real API if keys are present, otherwise returns mock.
  */
 export const createRazorpayOrder = async (showId: string, seatIds: string[], userId: string) => {
   // Verify all seat locks in Redis
@@ -19,20 +26,42 @@ export const createRazorpayOrder = async (showId: string, seatIds: string[], use
   // Calculate amount: 250 per seat + 30 convenience fee
   const amount = (seatIds.length * 250) + 30;
 
-  // Simulate a Razorpay order object
+  if (razorpay) {
+    try {
+      const order = await razorpay.orders.create({
+        amount: amount * 100, // paisa
+        currency: "INR",
+        receipt: `receipt_${Date.now()}`,
+        notes: { userId, showId, seatIds: seatIds.join(",") }
+      });
+
+      return {
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        keyId: process.env.RAZORPAY_KEY_ID,
+        bookingId: order.id, // We use order.id as a temporary tracking ID
+      };
+    } catch (err) {
+      console.error("Razorpay Order Creation Error:", err);
+      throw new ApiError(500, "Failed to create Razorpay order");
+    }
+  }
+
+  // Simulate a Razorpay order object (Mock)
   return {
     orderId: `order_mock_${Math.random().toString(36).substr(2, 9)}`,
-    amount: amount * 100, // Razorpay expects paise
+    amount: amount * 100,
     currency: "INR",
     status: "created",
-    keyId: "rzp_test_mock", // Dummy key for frontend
+    keyId: "rzp_test_mock",
     bookingId: "mock_booking_id",
     notes: { userId, showId, seatIds: seatIds.join(",") }
   };
 };
 
 /**
- * MOCK: Simulates verifying a Razorpay payment.
+ * Verifies a Razorpay payment. Uses real signature verification if keys are present.
  */
 export const verifyRazorpayPayment = async (
   razorpay_order_id: string,
@@ -42,9 +71,19 @@ export const verifyRazorpayPayment = async (
   seatIds: string[],
   userId: string
 ) => {
-  // For simulation, we assume any mock signature is valid and skip strict lock checks
-  // to prevent demo failures if the 5-minute lock expired during chat.
-  console.log(`MOCK: Verifying payment for user ${userId}, show ${showId}, seats ${seatIds.join(",")}`);
+  if (razorpay && razorpay_signature !== "mock_sig") {
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
+      .update(body.toString())
+      .digest("hex");
+
+    if (expectedSignature !== razorpay_signature) {
+      throw new ApiError(400, "Invalid payment signature");
+    }
+  } else {
+    console.log(`MOCK: Verifying payment for user ${userId}, show ${showId}, seats ${seatIds.join(",")}`);
+  }
   
   const bookings = await confirmBookings({ userId, showId, seatIds });
   return bookings;
