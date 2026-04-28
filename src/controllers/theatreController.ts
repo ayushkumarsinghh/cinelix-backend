@@ -53,7 +53,7 @@ export const deleteTheatre = async (req: Request, res: Response, next: NextFunct
   try {
     const { id } = req.params;
     await prisma.theatre.delete({
-      where: { id }
+      where: { id: id as string }
     });
     return res.status(200).json({ message: "Theatre deleted successfully" });
   } catch (err) {

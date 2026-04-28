@@ -45,7 +45,7 @@ export const createMovie = async (req: Request, res: Response, next: NextFunctio
 export const deleteMovie = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    await movieService.deleteMovie(id);
+    await movieService.deleteMovie(id as string);
     return res.status(200).json({ message: "Movie deleted successfully" });
   } catch (err: any) {
     next(err);
@@ -55,7 +55,7 @@ export const deleteMovie = async (req: Request, res: Response, next: NextFunctio
 export const updateMovie = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const movie = await movieService.updateMovie(id, req.body);
+    const movie = await movieService.updateMovie(id as string, req.body);
     return res.status(200).json(movie);
   } catch (err: any) {
     next(err);

@@ -119,7 +119,8 @@ export async function getUserBookings(userId: string) {
           },
           movie: {
             title: b.show.movie.title,
-            imageUrl: b.show.movie.imageUrl
+            imageUrl: b.show.movie.imageUrl,
+            duration: b.show.movie.duration
           }
         },
         seats: []

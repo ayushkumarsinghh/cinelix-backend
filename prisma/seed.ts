@@ -26,34 +26,66 @@ async function main() {
   });
 
   // 3. Create Movies
-  const movie1 = await prisma.movie.create({
-    data: { 
-      title: "Dune: Part Two", 
+  const moviesData = [
+    {
+      title: "Dune: Part Two",
       duration: 166,
       genre: "Sci-Fi, Adventure",
       description: "Paul Atreides unites with Chani and the Fremen while on a warpath of revenge against the conspirators who destroyed his family.",
-      imageUrl: "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=2094&auto=format&fit=crop"
+      imageUrl: "https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?q=80&w=2070",
+      trailerUrl: "https://www.youtube.com/embed/Way9Dexny3w"
     },
-  });
-  const movie2 = await prisma.movie.create({
-    data: { 
-      title: "Oppenheimer", 
+    {
+      title: "Oppenheimer",
       duration: 180,
-      genre: "Biography, Drama, History",
+      genre: "Biography, Drama",
       description: "The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb.",
-      imageUrl: "https://images.unsplash.com/photo-1440404653325-ab127d49abc1?q=80&w=2070&auto=format&fit=crop"
+      imageUrl: "https://images.unsplash.com/photo-1440404653325-ab127d49abc1?q=80&w=2070",
+      trailerUrl: "https://www.youtube.com/embed/uYPbbksJxIg"
     },
-  });
+    {
+      title: "Joker: Folie à Deux",
+      duration: 138,
+      genre: "Crime, Drama, Musical",
+      description: "Failed comedian Arthur Fleck meets the love of his life, Harley Quinn, while incarcerated at Arkham State Hospital.",
+      imageUrl: "https://images.unsplash.com/photo-1531259683007-016a7b628fc3?q=80&w=2070",
+      trailerUrl: "https://www.youtube.com/embed/xy8aJw1vYHo"
+    },
+    {
+      title: "The Batman",
+      duration: 176,
+      genre: "Action, Crime, Drama",
+      description: "When a sadistic serial killer begins murdering key political figures in Gotham, Batman is forced to investigate the city's hidden corruption.",
+      imageUrl: "https://images.unsplash.com/photo-1478720568477-152d9b164e26?q=80&w=2070",
+      trailerUrl: "https://www.youtube.com/embed/mqqft2x_Aa4"
+    },
+    {
+      title: "Gladiator II",
+      duration: 148,
+      genre: "Action, Adventure, Drama",
+      description: "Years after witnessing the death of the revered hero Maximus, Lucius is forced to enter the Colosseum after his home is conquered.",
+      imageUrl: "https://images.unsplash.com/photo-1599739291060-4578e77dac5d?q=80&w=2070",
+      trailerUrl: "https://www.youtube.com/embed/4rgYUipGJNo"
+    }
+  ];
+
+  const movies = [];
+  for (const movieData of moviesData) {
+    const movie = await prisma.movie.create({ data: movieData });
+    movies.push(movie);
+  }
 
   // 4. Create a Theatre
   const theatre = await prisma.theatre.create({
     data: { name: "IMAX Megaplex", location: "Mumbai, BKC" },
   });
 
-  // 5. Create 70 Seats (Rows A-G, 1-10)
-  const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+  // 5. Create Seats (10 Columns, Block Layout)
+  const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+  const columns = 10;
+
   for (const row of rows) {
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= columns; i++) {
       await prisma.seat.create({
         data: {
           theatreId: theatre.id,
@@ -66,7 +98,7 @@ async function main() {
   // 6. Create Shows
   const show1 = await prisma.show.create({
     data: {
-      movieId: movie1.id,
+      movieId: movies[0].id,
       theatreId: theatre.id,
       startTime: new Date(new Date().setHours(18, 0, 0, 0)), // 6:00 PM Today
     },
@@ -74,7 +106,7 @@ async function main() {
 
   const show2 = await prisma.show.create({
     data: {
-      movieId: movie2.id,
+      movieId: movies[1].id,
       theatreId: theatre.id,
       startTime: new Date(new Date().getTime() + 24 * 60 * 60 * 1000), // 24 hours later
     },

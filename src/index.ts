@@ -13,6 +13,7 @@ import movieRoutes from "./routes/movieRoutes.js";
 import showRoutes from "./routes/showRoutes.js";
 import theatreRoutes from "./routes/theatreRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 import prisma from "./lib/prisma.js";
 import redis from "./lib/redis.js";
 import { errorHandler } from "./middleware/errorMiddleware.js";
@@ -59,6 +60,7 @@ app.use("/api/seats", seatRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/users", userRoutes);
 
 // Health Check
 app.get("/health", (req, res) => {

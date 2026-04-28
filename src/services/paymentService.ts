@@ -53,10 +53,40 @@ export const createRazorpayOrder = async (showId: string, seatIds: string[], use
     orderId: `order_mock_${Math.random().toString(36).substr(2, 9)}`,
     amount: amount * 100,
     currency: "INR",
-    status: "created",
     keyId: "rzp_test_mock",
-    bookingId: "mock_booking_id",
-    notes: { userId, showId, seatIds: seatIds.join(",") }
+  };
+};
+
+/**
+ * Creates a Razorpay order for a subscription plan.
+ */
+export const createRazorpaySubscriptionOrder = async (planName: string, amount: number, userId: string) => {
+  if (razorpay) {
+    try {
+      const order = await razorpay.orders.create({
+        amount: amount * 100, // paisa
+        currency: "INR",
+        receipt: `sub_${Date.now()}`,
+        notes: { userId, planName, type: "SUBSCRIPTION" }
+      });
+
+      return {
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        keyId: process.env.RAZORPAY_KEY_ID,
+      };
+    } catch (err) {
+      console.error("Razorpay Subscription Order Creation Error:", err);
+      throw new ApiError(500, "Failed to create subscription order");
+    }
+  }
+
+  return {
+    orderId: `order_mock_sub_${Math.random().toString(36).substr(2, 9)}`,
+    amount: amount * 100,
+    currency: "INR",
+    keyId: "rzp_test_mock",
   };
 };
 
@@ -87,6 +117,32 @@ export const verifyRazorpayPayment = async (
   
   const bookings = await confirmBookings({ userId, showId, seatIds });
   return bookings;
+};
+
+/**
+ * Verifies a Razorpay subscription payment.
+ */
+export const verifyRazorpaySubscription = async (
+  razorpay_order_id: string,
+  razorpay_payment_id: string,
+  razorpay_signature: string,
+  userId: string
+) => {
+  if (razorpay && !razorpay_signature.startsWith("mock_sig")) {
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
+      .update(body.toString())
+      .digest("hex");
+
+    if (expectedSignature !== razorpay_signature) {
+      throw new ApiError(400, "Invalid payment signature");
+    }
+  } else {
+    console.log(`MOCK: Verifying subscription payment for user ${userId}`);
+  }
+  
+  return true;
 };
 
 /**

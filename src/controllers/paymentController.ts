@@ -11,6 +11,19 @@ export const createOrderController = async (req: AuthRequest, res: Response, nex
     const validatedData = createOrderSchema.parse(req.body);
     const userId = req.user!.userId;
 
+    if (validatedData.type === 'SUBSCRIPTION') {
+      const order = await paymentService.createRazorpaySubscriptionOrder(
+        validatedData.planName || 'Cinelix+',
+        validatedData.amount || 499,
+        userId
+      );
+      return res.status(200).json(order);
+    }
+
+    if (!validatedData.showId || !validatedData.seatIds) {
+      return res.status(400).json({ message: "showId and seatIds are required for movie bookings" });
+    }
+
     const order = await paymentService.createRazorpayOrder(
       validatedData.showId,
       validatedData.seatIds,
@@ -26,8 +39,32 @@ export const createOrderController = async (req: AuthRequest, res: Response, nex
 export const verifyPaymentController = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     // For the demo, we'll be more lenient with the input
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, showId, seatIds } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, showId, seatIds, type } = req.body;
     const userId = req.user!.userId;
+
+    if (type === 'SUBSCRIPTION') {
+      await paymentService.verifyRazorpaySubscription(
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature,
+        userId
+      );
+      
+      // Calculate expiry (1 year from now)
+      const expiryDate = new Date();
+      expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+
+      // Update user membership in DB
+      await (prisma.user.update as any)({
+        where: { id: userId },
+        data: { 
+          isPremium: true,
+          premiumUntil: expiryDate
+        }
+      });
+
+      return res.status(200).json({ message: "Subscription activated successfully!" });
+    }
 
     if (!showId || !seatIds) {
       return res.status(400).json({ message: "Missing showId or seatIds in verification" });
