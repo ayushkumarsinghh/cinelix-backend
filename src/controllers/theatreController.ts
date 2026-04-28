@@ -6,7 +6,10 @@ export const getAllTheatres = async (req: Request, res: Response, next: NextFunc
     const theatres = await prisma.theatre.findMany({
       include: {
         _count: {
-          select: { shows: true }
+          select: { 
+            shows: true,
+            seats: true
+          }
         }
       }
     });
@@ -53,6 +56,38 @@ export const deleteTheatre = async (req: Request, res: Response, next: NextFunct
       where: { id }
     });
     return res.status(200).json({ message: "Theatre deleted successfully" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const fixMissingSeats = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const theatres = await prisma.theatre.findMany({
+      include: { _count: { select: { seats: true } } }
+    });
+
+    let fixedCount = 0;
+    for (const theatre of theatres) {
+      if (theatre._count.seats === 0) {
+        const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+        const seatData = [];
+        for (const row of rows) {
+          for (let i = 1; i <= 10; i++) {
+            seatData.push({
+              theatreId: theatre.id,
+              seatNumber: `${row}${i}`
+            });
+          }
+        }
+        await prisma.seat.createMany({ data: seatData });
+        fixedCount++;
+      }
+    }
+
+    return res.status(200).json({ 
+      message: `Checked ${theatres.length} theatres. Fixed seats for ${fixedCount} theatres.` 
+    });
   } catch (err) {
     next(err);
   }
