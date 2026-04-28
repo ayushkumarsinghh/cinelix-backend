@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { AuthRequest } from "../middleware/authMiddleware.js";
 import { registerSchema, loginSchema } from "../validators/authSchemas.js";
 import * as authService from "../services/authService.js";
 
@@ -30,9 +31,9 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
   }
 };
 
-export const getMe = async (req: any, res: Response, next: NextFunction) => {
+export const getMe = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user!.userId;
     const user = await authService.getUserProfile(userId);
 
     return res.status(200).json(user);

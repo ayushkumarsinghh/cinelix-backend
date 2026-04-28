@@ -20,9 +20,18 @@ export async function lockSeat({ showId, seatId, userId }: SeatLockParams): Prom
 }
 
 export async function lockSeats({ showId, seatIds, userId }: { showId: string, seatIds: string[], userId: string }): Promise<void> {
-  // Try to lock all seats. In a real production app, we should use a Lua script or Redis transaction for atomicity.
-  for (const seatId of seatIds) {
-    await lockSeat({ showId, seatId, userId });
+  const lockedSeats: string[] = [];
+  try {
+    for (const seatId of seatIds) {
+      await lockSeat({ showId, seatId, userId });
+      lockedSeats.push(seatId);
+    }
+  } catch (error) {
+    // Rollback: unlock seats that were locked before the failure
+    for (const seatId of lockedSeats) {
+      await redis.del(`seat_lock:${showId}:${seatId}`);
+    }
+    throw error;
   }
 }
 
