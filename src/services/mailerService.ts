@@ -68,7 +68,12 @@ export const sendTicketEmail = async (email: string, bookingDetails: any) => {
   try {
     await transporter.sendMail(mailOptions);
     console.log(`Ticket email sent to: ${email}`);
-  } catch (error) {
-    console.error('Error sending ticket email:', error);
+  } catch (error: any) {
+    if (error.responseCode === 535) {
+      console.error('\x1b[31m%s\x1b[0m', 'MAILER ERROR: Gmail Authentication Failed!');
+      console.error('\x1b[33m%s\x1b[0m', 'FIX: Please generate a "Google App Password" and use it as SMTP_PASS in your .env file.');
+    } else {
+      console.error('Error sending ticket email:', error.message);
+    }
   }
 };
