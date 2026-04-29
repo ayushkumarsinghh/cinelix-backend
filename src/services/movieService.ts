@@ -30,12 +30,16 @@ export const createMovie = async (data: any) => {
       genre: data.genre,
       description: data.description,
       imageUrl: data.imageUrl,
+      backdropUrl: data.backdropUrl,
       trailerUrl: data.trailerUrl
     }
   });
 };
 
 export const deleteMovie = async (id: string) => {
+  const exists = await prisma.movie.findUnique({ where: { id } });
+  if (!exists) return;
+  
   return await prisma.movie.delete({
     where: { id }
   });
@@ -50,6 +54,7 @@ export const updateMovie = async (id: string, data: any) => {
       genre: data.genre,
       description: data.description,
       imageUrl: data.imageUrl,
+      backdropUrl: data.backdropUrl,
       trailerUrl: data.trailerUrl
     }
   });
