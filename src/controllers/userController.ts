@@ -19,6 +19,7 @@ export const getProfile = async (req: Request, res: Response) => {
       email: true,
       isPremium: true,
       premiumUntil: true,
+      walletBalance: true,
       createdAt: true,
       _count: {
         select: { bookings: true }
