@@ -16,6 +16,22 @@ export const getAllShows = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
+export const getShowById = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const show = await prisma.show.findUnique({
+      where: { id: req.params.id as string },
+      include: {
+        movie: true,
+        theatre: true
+      }
+    });
+    if (!show) return res.status(404).json({ message: "Show not found" });
+    return res.status(200).json(show);
+  } catch (err: any) {
+    next(err);
+  }
+};
+
 export const createShow = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { movieId, theatreId, startTime } = req.body;
