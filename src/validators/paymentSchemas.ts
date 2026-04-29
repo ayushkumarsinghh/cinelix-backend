@@ -5,7 +5,8 @@ export const createOrderSchema = z.object({
   seatIds: z.array(z.string()).optional(),
   type: z.enum(["BOOKING", "SUBSCRIPTION"]).optional().default("BOOKING"),
   planName: z.string().optional(),
-  amount: z.number().optional()
+  amount: z.number().optional(),
+  walletAmount: z.number().optional()
 });
 
 export const verifyPaymentSchema = z.object({
@@ -15,4 +16,5 @@ export const verifyPaymentSchema = z.object({
   showId: z.string().uuid().optional(),
   seatIds: z.array(z.string()).optional(),
   type: z.enum(["BOOKING", "SUBSCRIPTION"]).optional().default("BOOKING"),
+  walletAmount: z.number().optional()
 });
