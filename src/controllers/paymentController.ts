@@ -1,7 +1,13 @@
 import { Request, Response, NextFunction } from "express";
 import { AuthRequest } from "../middleware/authMiddleware.js";
 import { createOrderSchema, verifyPaymentSchema } from "../validators/paymentSchemas.js";
-import * as paymentService from "../services/paymentService.js";
+import { 
+  createRazorpayOrder, 
+  verifyRazorpayPayment, 
+  handleRazorpayWebhook, 
+  createRazorpaySubscriptionOrder, 
+  verifyRazorpaySubscription 
+} from "../services/paymentService.js";
 import { getBookingById } from "../services/bookingService.js";
 import prisma from "../lib/prisma.js";
 
@@ -11,7 +17,7 @@ export const createOrderController = async (req: AuthRequest, res: Response, nex
     const userId = req.user!.userId;
 
     if (validatedData.type === 'SUBSCRIPTION') {
-      const order = await paymentService.createRazorpaySubscriptionOrder(
+      const order = await createRazorpaySubscriptionOrder(
         validatedData.planName || 'Cinelix+',
         validatedData.amount || 499,
         userId
@@ -23,7 +29,7 @@ export const createOrderController = async (req: AuthRequest, res: Response, nex
       return res.status(400).json({ message: "showId and seatIds are required for movie bookings" });
     }
 
-    const order = await paymentService.createRazorpayOrder(
+    const order = await createRazorpayOrder(
       validatedData.showId,
       validatedData.seatIds,
       userId,
@@ -38,23 +44,21 @@ export const createOrderController = async (req: AuthRequest, res: Response, nex
 
 export const verifyPaymentController = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    // For the demo, we'll be more lenient with the input
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, showId, seatIds, type, walletAmount } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, showId, seatIds, type } = req.body;
     const userId = req.user!.userId;
 
+    // Handle Subscription Verification
     if (type === 'SUBSCRIPTION') {
-      await paymentService.verifyRazorpaySubscription(
+      await verifyRazorpaySubscription(
         razorpay_order_id,
         razorpay_payment_id,
         razorpay_signature,
         userId
       );
       
-      // Calculate expiry (1 year from now)
       const expiryDate = new Date();
       expiryDate.setFullYear(expiryDate.getFullYear() + 1);
 
-      // Update user membership in DB
       await (prisma.user.update as any)({
         where: { id: userId },
         data: { 
@@ -70,7 +74,7 @@ export const verifyPaymentController = async (req: AuthRequest, res: Response, n
       return res.status(400).json({ message: "Missing showId or seatIds in verification" });
     }
 
-    const bookings = await paymentService.verifyRazorpayPayment(
+    const bookings = await verifyRazorpayPayment(
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
@@ -80,6 +84,7 @@ export const verifyPaymentController = async (req: AuthRequest, res: Response, n
     );
 
     // If wallet was used, deduct it now
+    const walletAmount = (req.body as any).walletAmount;
     if (walletAmount && walletAmount > 0) {
       await (prisma.user.update as any)({
         where: { id: userId },
@@ -89,10 +94,12 @@ export const verifyPaymentController = async (req: AuthRequest, res: Response, n
 
     // Emit real-time update
     const io = req.app.get("io");
-    io.to(`show_${showId}`).emit("booking_confirmed", {
-      showId,
-      confirmedSeats: seatIds
-    });
+    if (io) {
+      io.to(`show_${showId}`).emit("booking_confirmed", {
+        showId,
+        confirmedSeats: seatIds
+      });
+    }
 
     return res.status(200).json({ 
       message: "Payment verified and booking confirmed!", 
@@ -107,7 +114,7 @@ export const verifyPaymentController = async (req: AuthRequest, res: Response, n
 export const handleWebhookController = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const signature = req.headers["x-razorpay-signature"] as string;
-    await paymentService.processWebhook(req.body, signature);
+    await handleRazorpayWebhook(req.body, signature);
     return res.status(200).json({ status: "ok" });
   } catch (err: any) {
     next(err);

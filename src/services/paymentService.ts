@@ -160,7 +160,7 @@ export const verifyRazorpaySubscription = async (
 /**
  * MOCK: Simulates processing a Razorpay webhook.
  */
-export const processWebhook = async (body: any, signature: string) => {
+export const handleRazorpayWebhook = async (body: any, signature: string) => {
   const event = body.event;
 
   if (event === "payment.captured") {
