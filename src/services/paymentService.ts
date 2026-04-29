@@ -3,6 +3,7 @@ import crypto from "crypto";
 import redis from "../lib/redis.js";
 import { ApiError } from "../middleware/errorMiddleware.js";
 import { confirmBookings } from "./bookingService.js";
+import prisma from "../lib/prisma.js";
 
 const razorpay = process.env.RAZORPAY_KEY_ID ? new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -12,7 +13,7 @@ const razorpay = process.env.RAZORPAY_KEY_ID ? new Razorpay({
 /**
  * Creates a Razorpay order. Uses real API if keys are present, otherwise returns mock.
  */
-export const createRazorpayOrder = async (showId: string, seatIds: string[], userId: string) => {
+export const createRazorpayOrder = async (showId: string, seatIds: string[], userId: string, walletAmount: number = 0) => {
   // Verify all seat locks in Redis
   for (const seatId of seatIds) {
     const lockKey = `seat_lock:${showId}:${seatId}`;
@@ -23,8 +24,13 @@ export const createRazorpayOrder = async (showId: string, seatIds: string[], use
     }
   }
 
-  // Calculate amount: 250 per seat + 30 convenience fee
-  const amount = (seatIds.length * 250) + 30;
+  // Calculate amount based on actual show price + convenience fee
+  const show = await prisma.show.findUnique({ where: { id: showId } });
+  if (!show) throw new ApiError(404, "Show not found");
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const convenienceFee = user?.isPremium ? 12.5 : 30;
+  const amount = Math.max(0, (seatIds.length * show.price) + convenienceFee - walletAmount);
 
   if (razorpay) {
     try {
@@ -107,6 +113,12 @@ export const verifyRazorpayPayment = async (
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
       .update(body.toString())
       .digest("hex");
+
+    console.log("--- RAZORPAY DEBUG ---");
+    console.log("Order ID:", razorpay_order_id);
+    console.log("Payment ID:", razorpay_payment_id);
+    console.log("Expected Signature:", expectedSignature);
+    console.log("Received Signature:", razorpay_signature);
 
     if (expectedSignature !== razorpay_signature) {
       throw new ApiError(400, "Invalid payment signature");
